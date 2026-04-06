@@ -3,6 +3,7 @@ import TopLoadingBar from './components/TopLoadingBar';
 import CookieConsent from './components/CookieConsent';
 import BackToTop from './components/BackToTop';
 import SupportWidget from './components/SupportWidget';
+import { AuthProvider } from './contexts/AuthContext';
 
 export const metadata = {
   title: 'BAZZAR — Цифровые товары мгновенно',
@@ -27,11 +28,13 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body>
-        <TopLoadingBar />
-        {children}
-        <SupportWidget />
-        <BackToTop />
-        <CookieConsent />
+        <AuthProvider>
+          <TopLoadingBar />
+          {children}
+          <SupportWidget />
+          <BackToTop />
+          <CookieConsent />
+        </AuthProvider>
       </body>
     </html>
   );

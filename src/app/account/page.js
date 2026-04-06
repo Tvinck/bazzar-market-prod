@@ -1,10 +1,133 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import styles from './account.module.css';
 
+/* ═══════════════════════════════════════════════
+   Account Page — User Dashboard
+   ═══════════════════════════════════════════════ */
 export default function AccountPage() {
+  const router = useRouter();
+  const { user, profile, loading, signOut, updateProfile } = useAuth();
+
+  const [tab, setTab] = useState('profile'); // profile | orders | support
+  const [orders, setOrders] = useState([]);
+  const [supportChats, setSupportChats] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth');
+    }
+  }, [user, loading, router]);
+
+  // Load orders from delivery tables
+  const loadOrders = useCallback(async () => {
+    if (!user?.email) return;
+    setOrdersLoading(true);
+    try {
+      const tables = [
+        { table: 'telegram_stars_deliveries', type: '⭐ Telegram Stars' },
+        { table: 'telegram_premium_deliveries', type: '💎 Telegram Premium' },
+        { table: 'steam_gift_deliveries', type: '🎮 Steam Gift' },
+        { table: 'voucher_deliveries', type: '🎁 Подарочная карта' },
+        { table: 'mobile_game_deliveries', type: '📱 Мобильная игра' },
+      ];
+
+      const allOrders = [];
+      for (const { table, type } of tables) {
+        const { data } = await supabase.from(table).select('*').order('created_at', { ascending: false }).limit(20);
+        if (data) {
+          allOrders.push(...data.map(o => ({ ...o, _type: type, _table: table })));
+        }
+      }
+      allOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setOrders(allOrders);
+    } catch (e) {
+      console.warn('[Account] Orders load failed:', e);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [user]);
+
+  // Load support chats
+  const loadSupportChats = useCallback(async () => {
+    if (!user) return;
+    try {
+      const visitorId = typeof window !== 'undefined' ? localStorage.getItem('bazzar_visitor_id') : null;
+      if (!visitorId) return;
+      const { data } = await supabase
+        .from('support_chats')
+        .select('*')
+        .eq('visitor_id', visitorId)
+        .order('updated_at', { ascending: false });
+      setSupportChats(data || []);
+    } catch (e) {
+      console.warn('[Account] Chats load failed:', e);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (tab === 'orders') loadOrders();
+    if (tab === 'support') loadSupportChats();
+  }, [tab, loadOrders, loadSupportChats]);
+
+  // Edit profile handlers
+  const startEditing = () => {
+    setEditName(profile?.name || '');
+    setEditPhone(profile?.phone || '');
+    setEditing(true);
+  };
+
+  const saveProfile = async () => {
+    setSaving(true);
+    try {
+      await updateProfile({ name: editName, phone: editPhone });
+      setEditing(false);
+    } catch (e) {
+      console.error('[Account] Save failed:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/');
+  };
+
+  // Format helpers
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+  const fmtStatus = (s) => {
+    const map = {
+      pending: { label: 'Ожидание', color: '#FFA726' },
+      delivered: { label: 'Доставлен', color: '#00E676' },
+      processing: { label: 'Обработка', color: '#42A5F5' },
+      failed: { label: 'Ошибка', color: '#FF5252' },
+      completed: { label: 'Завершён', color: '#00E676' },
+    };
+    return map[s] || { label: s || '—', color: '#999' };
+  };
+
+  if (loading || !user) {
+    return (
+      <main className={styles.page}>
+        <div className="app-bg" />
+        <div className={styles.loaderWrap}><div className={styles.spinner} /></div>
+      </main>
+    );
+  }
+
   return (
     <main className={styles.page}>
       <div className="app-bg" />
@@ -16,108 +139,179 @@ export default function AccountPage() {
             <span className={styles.logoIcon}>B</span>
             <span className={styles.logoName}>BAZZAR</span>
           </Link>
-          <Link href="/" className={styles.backBtn}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            На главную
-          </Link>
+          <button onClick={handleSignOut} className={styles.logoutBtn}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Выйти
+          </button>
         </div>
       </header>
 
       <div className={styles.container}>
         <div className={styles.bgGlow} />
 
-        <motion.div className={styles.content}
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        {/* Profile Card */}
+        <motion.div className={styles.profileCard}
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          {/* User avatar placeholder */}
-          <div className={styles.avatarSection}>
-            <motion.div className={styles.avatar}
-              initial={{ scale: 0.8 }} animate={{ scale: 1 }}
-              transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-            >
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <circle cx="24" cy="18" r="8" stroke="rgba(0,230,118,0.5)" strokeWidth="2" fill="none"/>
-                <path d="M8 42c0-8.84 7.16-16 16-16s16 7.16 16 16" stroke="rgba(0,230,118,0.5)" strokeWidth="2" strokeLinecap="round" fill="none"/>
-              </svg>
-            </motion.div>
-
-            {/* Lock icon badge */}
-            <motion.div className={styles.lockBadge}
-              initial={{ scale: 0 }} animate={{ scale: 1 }}
-              transition={{ delay: 0.3, type: 'spring' }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="3" y="7" width="10" height="7" rx="2" stroke="currentColor" strokeWidth="1.3"/>
-                <path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-            </motion.div>
+          <div className={styles.profileAvatar}>
+            <span>{(profile?.name || user.email)?.[0]?.toUpperCase() || '?'}</span>
           </div>
-
-          <h1 className={styles.title}>Личный кабинет</h1>
-          <div className={styles.badge}>
-            <span className={styles.badgeDot} />
-            В разработке
+          <div className={styles.profileInfo}>
+            <h2 className={styles.profileName}>{profile?.name || 'Пользователь'}</h2>
+            <span className={styles.profileEmail}>{user.email}</span>
           </div>
-          <p className={styles.desc}>
-            Мы создаём удобный личный кабинет с историей заказов, бонусной программой и управлением подписками. Скоро здесь!
-          </p>
-
-          {/* Preview features grid */}
-          <div className={styles.featuresGrid}>
-            {[
-              { icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="aClip" x1="0" y1="0" x2="24" y2="24"><stop stopColor="#00E676"/><stop offset="1" stopColor="#00C853"/></linearGradient></defs><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="url(#aClip)" strokeWidth="2"/><rect x="9" y="3" width="6" height="4" rx="1" stroke="url(#aClip)" strokeWidth="2"/><path d="M9 14l2 2 4-4" stroke="url(#aClip)" strokeWidth="2"/></svg>, title: 'История заказов', desc: 'Все покупки в одном месте' },
-              { icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="aCoin" x1="0" y1="0" x2="24" y2="24"><stop stopColor="#FBBF24"/><stop offset="1" stopColor="#D97706"/></linearGradient></defs><circle cx="12" cy="12" r="10" stroke="url(#aCoin)" strokeWidth="2"/><path d="M12 6v12M8 10c0-1.66 1.34-2 4-2s4 .34 4 2-1.34 2-4 2-4 .34-4 2 1.34 2 4 2 4-.34 4-2" stroke="url(#aCoin)" strokeWidth="2"/></svg>, title: 'Бонусный баланс', desc: 'Кэшбэк с каждой покупки' },
-              { icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="aBell" x1="0" y1="0" x2="24" y2="24"><stop stopColor="#A855F7"/><stop offset="1" stopColor="#7C3AED"/></linearGradient></defs><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9z" stroke="url(#aBell)" strokeWidth="2"/><path d="M13.73 21a2 2 0 01-3.46 0" stroke="url(#aBell)" strokeWidth="2"/></svg>, title: 'Уведомления', desc: 'Статус заказа в реальном времени' },
-              { icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="aGear" x1="0" y1="0" x2="24" y2="24"><stop stopColor="#42A5F5"/><stop offset="1" stopColor="#1E88E5"/></linearGradient></defs><circle cx="12" cy="12" r="3" stroke="url(#aGear)" strokeWidth="2"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="url(#aGear)" strokeWidth="2"/></svg>, title: 'Настройки', desc: 'Управление аккаунтом' },
-            ].map((feat, i) => (
-              <motion.div key={i} className={styles.featureCard}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + i * 0.1 }}
-              >
-                <span className={styles.featureIcon}>{feat.icon}</span>
-                <span className={styles.featureTitle}>{feat.title}</span>
-                <span className={styles.featureDesc}>{feat.desc}</span>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Progress indicator */}
-          <motion.div className={styles.progressSection}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
-          >
-            <div className={styles.progressLabel}>
-              <span>Прогресс разработки</span>
-              <span className={styles.progressPercent}>40%</span>
+          <div className={styles.statsRow}>
+            <div className={styles.statItem}>
+              <span className={styles.statValue}>{profile?.bonus_balance || 0}</span>
+              <span className={styles.statLabel}>💰 КупиКоины</span>
             </div>
-            <div className={styles.progressTrack}>
-              <motion.div className={styles.progressBar}
-                initial={{ width: 0 }}
-                animate={{ width: '40%' }}
-                transition={{ delay: 0.9, duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-              />
+            <div className={styles.statDivider} />
+            <div className={styles.statItem}>
+              <span className={styles.statValue}>{profile?.orders_count || 0}</span>
+              <span className={styles.statLabel}>📦 Заказов</span>
             </div>
-          </motion.div>
-
-          {/* Actions */}
-          <div className={styles.actions}>
-            <a href="https://t.me/bazzar_support" target="_blank" rel="noopener" className={styles.btnPrimary}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                <path d="M9 1.5C4.86 1.5 1.5 4.86 1.5 9s3.36 7.5 7.5 7.5 7.5-3.36 7.5-7.5S13.14 1.5 9 1.5zm3.48 5.1c-.11 1.19-.6 4.07-.85 5.39-.1.56-.31.75-.51.77-.44.04-.77-.29-1.19-.56-.66-.44-1.04-.71-1.67-1.13-.74-.49-.26-.76.16-1.19.11-.11 2.03-1.86 2.07-2.02a.15.15 0 00-.04-.13c-.04-.04-.11-.02-.16-.01-.07.01-1.12.71-3.17 2.09-.3.2-.57.31-.81.3-.27-.01-.78-.15-1.16-.28-.47-.15-.84-.23-.81-.5.01-.13.2-.27.55-.41 2.19-.95 3.65-1.58 4.37-1.88 2.09-.87 2.51-1.02 2.8-1.02.06 0 .2.01.29.09.08.06.1.14.11.2-.01.05.01.18 0 .29z"/>
-              </svg>
-              Узнать о запуске
-            </a>
-            <Link href="/" className={styles.btnGlass}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              В каталог
-            </Link>
+            <div className={styles.statDivider} />
+            <div className={styles.statItem}>
+              <span className={styles.statValue}>{profile?.total_spent ? `${Number(profile.total_spent).toLocaleString('ru-RU')} ₽` : '0 ₽'}</span>
+              <span className={styles.statLabel}>💳 Потрачено</span>
+            </div>
           </div>
+        </motion.div>
+
+        {/* Tabs */}
+        <div className={styles.tabs}>
+          {[
+            { key: 'profile', icon: '👤', label: 'Профиль' },
+            { key: 'orders', icon: '📋', label: 'Заказы' },
+            { key: 'support', icon: '💬', label: 'Поддержка' },
+          ].map(t => (
+            <button key={t.key}
+              className={`${styles.tabBtn} ${tab === t.key ? styles.tabBtnActive : ''}`}
+              onClick={() => setTab(t.key)}
+            >
+              <span>{t.icon}</span> {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <motion.div className={styles.tabContent}
+          key={tab}
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* PROFILE TAB */}
+          {tab === 'profile' && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>Личные данные</h3>
+              {editing ? (
+                <div className={styles.editForm}>
+                  <div className={styles.editField}>
+                    <label>Имя</label>
+                    <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Ваше имя" />
+                  </div>
+                  <div className={styles.editField}>
+                    <label>Телефон</label>
+                    <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+7 (999) 123-45-67" />
+                  </div>
+                  <div className={styles.editActions}>
+                    <button className={styles.btnSave} onClick={saveProfile} disabled={saving}>
+                      {saving ? '...' : '✓ Сохранить'}
+                    </button>
+                    <button className={styles.btnCancel} onClick={() => setEditing(false)}>Отмена</button>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.profileDetails}>
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>📧 Email</span>
+                    <span className={styles.detailValue}>{user.email}</span>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>👤 Имя</span>
+                    <span className={styles.detailValue}>{profile?.name || '—'}</span>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>📱 Телефон</span>
+                    <span className={styles.detailValue}>{profile?.phone || '—'}</span>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>📅 Регистрация</span>
+                    <span className={styles.detailValue}>{fmtDate(profile?.created_at)}</span>
+                  </div>
+                  <button className={styles.editBtn} onClick={startEditing}>
+                    ✏️ Редактировать
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ORDERS TAB */}
+          {tab === 'orders' && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>История заказов</h3>
+              {ordersLoading ? (
+                <div className={styles.loaderSmall}><div className={styles.spinner} /></div>
+              ) : orders.length === 0 ? (
+                <div className={styles.empty}>
+                  <span className={styles.emptyIcon}>📦</span>
+                  <p>Заказов пока нет</p>
+                  <Link href="/" className={styles.btnShop}>Перейти в каталог</Link>
+                </div>
+              ) : (
+                <div className={styles.ordersList}>
+                  {orders.map((order, i) => {
+                    const status = fmtStatus(order.status);
+                    return (
+                      <div key={order.id || i} className={styles.orderCard}>
+                        <div className={styles.orderTop}>
+                          <span className={styles.orderType}>{order._type}</span>
+                          <span className={styles.orderDate}>{fmtDate(order.created_at)}</span>
+                        </div>
+                        <div className={styles.orderMiddle}>
+                          <span className={styles.orderCode}>{order.delivery_code || order.code || order.id?.slice(0,8)}</span>
+                          <span className={styles.orderStatus} style={{ color: status.color, borderColor: status.color + '30' }}>
+                            {status.label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SUPPORT TAB */}
+          {tab === 'support' && (
+            <div className={styles.section}>
+              <h3 className={styles.sectionTitle}>Обращения в поддержку</h3>
+              {supportChats.length === 0 ? (
+                <div className={styles.empty}>
+                  <span className={styles.emptyIcon}>💬</span>
+                  <p>Обращений нет</p>
+                  <p className={styles.emptyHint}>Нажмите на зелёную кнопку справа внизу, чтобы начать чат</p>
+                </div>
+              ) : (
+                <div className={styles.chatsList}>
+                  {supportChats.map(chat => (
+                    <div key={chat.id} className={styles.chatCard}>
+                      <div className={styles.chatTop}>
+                        <span className={styles.chatSubject}>{chat.subject || 'Общий вопрос'}</span>
+                        <span className={styles.chatStatus} data-status={chat.status}>
+                          {chat.status === 'open' ? '🟢 Открыт' : '⚪ Закрыт'}
+                        </span>
+                      </div>
+                      <p className={styles.chatLastMsg}>{chat.last_message || 'Нет сообщений'}</p>
+                      <span className={styles.chatDate}>{fmtDate(chat.updated_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
       </div>
     </main>

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import styles from './SupportWidget.module.css';
 
 /* ═══════════════════════════════════════════════
@@ -51,6 +52,7 @@ function saveChatId(id) {
    Support Widget Component
    ═══════════════════════════════════════════════ */
 function SupportWidget() {
+  const { user, profile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('home'); // home | faq | faqDetail | chat
   const [faqIdx, setFaqIdx] = useState(null);
@@ -178,7 +180,8 @@ function SupportWidget() {
       .from('support_chats')
       .insert({
         visitor_id: visitorId,
-        visitor_name: 'Посетитель сайта',
+        visitor_name: profile?.name || user?.email || 'Посетитель сайта',
+        visitor_email: user?.email || '',
         status: 'open',
         subject: subject || 'Общий вопрос',
       })
