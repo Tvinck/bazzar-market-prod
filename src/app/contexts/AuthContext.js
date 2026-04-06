@@ -11,14 +11,25 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // Load user profile from bazzar_customers
-  const loadProfile = useCallback(async (userId) => {
+  const loadProfile = useCallback(async (userId, userEmail) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('bazzar_customers')
         .select('*')
         .eq('id', userId)
-        .single();
-      setProfile(data);
+        .maybeSingle();
+
+      if (data) {
+        setProfile(data);
+      } else {
+        // Profile doesn't exist yet — create it
+        const { data: newProfile } = await supabase
+          .from('bazzar_customers')
+          .upsert({ id: userId, email: userEmail || '' }, { onConflict: 'id' })
+          .select('*')
+          .single();
+        setProfile(newProfile);
+      }
     } catch (e) {
       console.warn('[Auth] Profile load failed:', e.message);
     }
@@ -38,7 +49,7 @@ export function AuthProvider({ children }) {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        loadProfile(u.id);
+        loadProfile(u.id, u.email);
         updateLastLogin(u.id);
       }
       setLoading(false);
@@ -50,7 +61,7 @@ export function AuthProvider({ children }) {
         const u = session?.user ?? null;
         setUser(u);
         if (u) {
-          loadProfile(u.id);
+          loadProfile(u.id, u.email);
         } else {
           setProfile(null);
         }
