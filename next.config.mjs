@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  /* Vercel auto-detects Next.js — no special output needed */
 };
 
 export default nextConfig;
