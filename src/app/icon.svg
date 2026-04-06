@@ -1,0 +1,19 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="512" y2="512">
+      <stop stop-color="#7B3FE4"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="256" y2="350">
+      <stop stop-color="rgba(255,255,255,0.3)"/>
+      <stop offset="1" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="108" fill="url(#bgGrad)"/>
+  <rect width="512" height="512" rx="108" fill="url(#shine)"/>
+  <!-- B letter shape -->
+  <path d="M160 96h120c50 0 90 18 90 62 0 32-22 54-52 62v2c38 8 62 36 62 72 0 52-44 78-100 78H160V96z M220 200h52c28 0 44-14 44-38s-16-36-44-36h-52v74z M220 320h58c32 0 50-16 50-42s-18-40-50-40h-58v82z" fill="rgba(255,255,255,0.15)"/>
+  <!-- Lightning bolt through center -->
+  <path d="M290 96L210 270h70L200 420l160-190h-80L350 96h-60z" fill="white"/>
+</svg>

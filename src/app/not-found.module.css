@@ -1,0 +1,192 @@
+/* ═══════════════════════════════════════════════
+   404 Page — Premium Space Theme
+   ═══════════════════════════════════════════════ */
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 24px;
+  max-width: 640px;
+}
+
+/* Background floating shapes */
+.bgShapes {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.shape1, .shape2, .shape3 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+
+.shape1 {
+  width: 400px; height: 400px;
+  top: -10%; left: -5%;
+  background: radial-gradient(circle, rgba(123,63,228,0.1), transparent 70%);
+}
+
+.shape2 {
+  width: 350px; height: 350px;
+  bottom: -5%; right: -10%;
+  background: radial-gradient(circle, rgba(249,115,22,0.08), transparent 70%);
+}
+
+.shape3 {
+  width: 250px; height: 250px;
+  top: 20%; right: 15%;
+  background: radial-gradient(circle, rgba(123,63,228,0.06), transparent 70%);
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.illustration {
+  margin-bottom: 24px;
+}
+
+.mascotImage {
+  mask-image: radial-gradient(ellipse 60% 55% at center 40%, #000 35%, transparent 62%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 55% at center 40%, #000 35%, transparent 62%);
+}
+
+.code {
+  font-family: var(--font-display);
+  font-size: 100px;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(135deg, #7B3FE4, #F97316, rgba(249,115,22,0.5));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 4s ease-in-out infinite;
+  margin-bottom: 8px;
+  letter-spacing: -4px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-white);
+  margin-bottom: 12px;
+}
+
+.desc {
+  font-size: 16px;
+  color: var(--text-400);
+  line-height: 1.6;
+  max-width: 420px;
+  margin-bottom: 36px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 36px;
+  background: var(--green);
+  color: #000;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: var(--r-full);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out-expo);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btnPrimary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+  transform: translateX(-100%);
+  transition: transform 0.6s var(--ease-out-expo);
+}
+
+.btnPrimary:hover::before { transform: translateX(100%); }
+
+.btnPrimary:hover {
+  background: #33FF99;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,230,118,0.35), 0 0 60px rgba(0,230,118,0.1);
+  color: #000;
+}
+
+.btnGlass {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 28px;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--r-full);
+  color: var(--text-200);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out-expo);
+  text-decoration: none;
+}
+
+.btnGlass:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+  transform: translateY(-2px);
+  color: var(--text-white);
+}
+
+.hint {
+  position: fixed;
+  bottom: 24px;
+  color: var(--text-600);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .code { font-size: 72px; }
+  .title { font-size: 22px; }
+  .desc { font-size: 14px; }
+  .actions { flex-direction: column; width: 100%; }
+  .btnPrimary, .btnGlass { width: 100%; justify-content: center; }
+}

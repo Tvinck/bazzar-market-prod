@@ -1,0 +1,582 @@
+/* ═══════════════════════════════════════════
+   BAZZAR — Premium Delivery Page
+   Every element breathes quality  
+   ═══════════════════════════════════════════ */
+
+.main {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* ─── Header ─── */
+.header {
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  position: relative;
+  z-index: 10;
+}
+
+.headerInner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logoMark {
+  width: 34px;
+  height: 34px;
+  background: var(--gradient-brand);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 16px;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(77,166,255,0.15);
+}
+
+.logoText {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: 2px;
+  color: var(--text-white);
+}
+
+/* ─── Content ─── */
+.content {
+  padding: 40px 0 80px;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+/* ─── Loading ─── */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 60px 0;
+}
+
+.shimmer {
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, var(--bg-secondary) 0%, var(--bg-card) 40%, var(--bg-secondary) 80%);
+  background-size: 300% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* ─── Error ─── */
+.errorCard {
+  text-align: center;
+  padding: 80px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.errorIconWrap { margin-bottom: 24px; }
+
+.errorTitle {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.errorText {
+  color: var(--text-secondary);
+  font-size: 15px;
+  max-width: 360px;
+}
+
+/* ─── Delivery Flow ─── */
+.deliveryFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─── Success Header ─── */
+.successHeader {
+  text-align: center;
+  padding: 40px 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.successGlow {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 400px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(34,197,94,0.06) 0%, transparent 65%);
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+.successTitle {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  background: var(--gradient-success);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+}
+
+.successProduct {
+  font-size: 18px;
+  color: var(--text-secondary);
+  position: relative;
+}
+
+/* Platform badge */
+.platformBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Trust bar */
+.trustBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 24px;
+  background: rgba(0,230,118,0.02);
+  border: 1px solid rgba(0,230,118,0.06);
+  border-radius: var(--radius-xl);
+}
+
+.trustItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.trustDivider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255,255,255,0.06);
+}
+
+/* ─── Product Card ─── */
+.productCard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s var(--ease-out-expo);
+}
+
+.productCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 40%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.productCardGlow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, var(--accent, rgba(77,166,255,0.08)) 0%, transparent 70%);
+  opacity: 0.15;
+  filter: blur(30px);
+  pointer-events: none;
+}
+
+.productIconWrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.productInfo {
+  flex: 1;
+  position: relative;
+}
+
+.productInfo h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.productInfo span {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.productStatus {
+  position: relative;
+}
+
+/* ─── Instructions ─── */
+.instructionsCard {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: 24px 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.instructionsCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 40%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.cardTitle {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.stepNum {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border-strong);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-blue);
+  flex-shrink: 0;
+}
+
+.stepText {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding-top: 4px;
+}
+
+/* ─── Data Card — THE KEY ─── */
+.dataCard {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(34,197,94,0.12);
+  border-radius: var(--radius-2xl);
+  padding: 32px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.dataCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(34,197,94,0.05) 50%, transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.dataGlow {
+  position: absolute;
+  top: -30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 200px;
+  background: radial-gradient(circle, var(--accent, rgba(34,197,94,0.05)) 0%, transparent 65%);
+  opacity: 0.3;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.dataLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  display: block;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.dataValue {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: var(--text-white);
+  padding: 18px 28px;
+  background: var(--bg-primary);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-lg);
+  word-break: break-all;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.dataLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  padding: 18px 24px;
+  background: rgba(77,166,255,0.04);
+  border: 1px solid rgba(77,166,255,0.12);
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  word-break: break-all;
+  transition: all 0.3s var(--ease-out-expo);
+  position: relative;
+}
+
+.dataLink:hover {
+  background: rgba(77,166,255,0.08);
+  border-color: rgba(77,166,255,0.2);
+  color: var(--accent-cyan);
+}
+
+.copyBtn {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.3s var(--ease-out-expo);
+  position: relative;
+  overflow: hidden;
+}
+
+.copyBtn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 100%);
+  transform: translateX(-100%);
+  transition: transform 0.5s var(--ease-out-expo);
+}
+
+.copyBtn:hover::before { transform: translateX(100%); }
+
+.copyBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Meta Grid ─── */
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.metaCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  position: relative;
+}
+
+.metaCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.metaLabel {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.metaValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ─── Bottom CTAs ─── */
+.bottomCards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ctaCard {
+  display: flex;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: all 0.3s var(--ease-out-expo);
+  position: relative;
+  overflow: hidden;
+}
+
+.ctaCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 40%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.ctaCard:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border-strong);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  color: var(--text-primary);
+}
+
+.ctaIcon {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.ctaCard strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.ctaCard p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.ctaCardAccent {
+  border-color: rgba(77,166,255,0.1);
+  background: rgba(77,166,255,0.02);
+}
+
+.ctaCardAccent:hover {
+  border-color: rgba(77,166,255,0.2);
+  box-shadow: var(--shadow-glow-blue);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 640px) {
+  .content { padding: 24px 16px 60px; }
+  .metaGrid { grid-template-columns: 1fr; }
+  .bottomCards { grid-template-columns: 1fr; }
+  .dataValue { font-size: 20px; letter-spacing: 2px; padding: 14px 20px; }
+  .successTitle { font-size: 26px; }
+  .productCard { padding: 16px; }
+  .trustBar { flex-direction: column; gap: 8px; padding: 12px 16px; }
+  .trustDivider { width: 100%; height: 1px; }
+}
