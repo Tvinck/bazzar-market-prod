@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
+import { supabase } from '../../lib/supabase';
 import styles from './SupportWidget.module.css';
 
 /* ═══════════════════════════════════════════════
@@ -23,6 +24,30 @@ const QUICK_MESSAGES = [
 ];
 
 /* ═══════════════════════════════════════════════
+   Visitor ID — persistent across sessions
+   ═══════════════════════════════════════════════ */
+function getVisitorId() {
+  if (typeof window === 'undefined') return 'ssr';
+  let id = localStorage.getItem('bazzar_visitor_id');
+  if (!id) {
+    id = 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem('bazzar_visitor_id', id);
+  }
+  return id;
+}
+
+function getSavedChatId() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('bazzar_chat_id');
+}
+
+function saveChatId(id) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('bazzar_chat_id', id);
+  }
+}
+
+/* ═══════════════════════════════════════════════
    Support Widget Component
    ═══════════════════════════════════════════════ */
 function SupportWidget() {
@@ -32,8 +57,11 @@ function SupportWidget() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [chatId, setChatId] = useState(null);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
   const chatRef = useRef(null);
   const inputRef = useRef(null);
+  const subscriptionRef = useRef(null);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -42,78 +70,263 @@ function SupportWidget() {
     }
   }, [messages, isTyping]);
 
+  // Subscribe to realtime messages when chat is active
+  useEffect(() => {
+    if (!chatId) return;
+
+    const channel = supabase
+      .channel(`support_messages_${chatId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'support_messages',
+        filter: `chat_id=eq.${chatId}`,
+      }, (payload) => {
+        const msg = payload.new;
+        // Only show operator messages (visitor messages are already shown optimistically)
+        if (msg.sender === 'operator') {
+          setMessages(prev => {
+            // Avoid duplicates
+            if (prev.some(m => m.id === msg.id)) return prev;
+            return [...prev, {
+              id: msg.id,
+              from: 'bot',
+              text: msg.text,
+              created_at: msg.created_at,
+            }];
+          });
+          // Show notification if widget is closed
+          if (!isOpen) {
+            setHasNewMessage(true);
+          }
+        }
+      })
+      .subscribe();
+
+    subscriptionRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatId, isOpen]);
+
   const toggleOpen = useCallback(() => {
     setIsOpen(prev => {
-      if (!prev) { setView('home'); setMessages([]); setFaqIdx(null); }
+      if (!prev) {
+        setView('home');
+        setHasNewMessage(false);
+        // Check for existing chat session
+        const savedId = getSavedChatId();
+        if (savedId) {
+          setChatId(savedId);
+          // Load existing messages
+          loadMessages(savedId);
+        }
+      }
       return !prev;
     });
   }, []);
 
+  // Load messages from Supabase
+  const loadMessages = async (cid) => {
+    try {
+      const { data, error } = await supabase
+        .from('support_messages')
+        .select('*')
+        .eq('chat_id', cid)
+        .order('created_at', { ascending: true });
+
+      if (!error && data?.length > 0) {
+        setMessages(data.map(m => ({
+          id: m.id,
+          from: m.sender === 'visitor' ? 'user' : 'bot',
+          text: m.text,
+          created_at: m.created_at,
+          cta: false,
+        })));
+        setView('chat');
+      }
+    } catch (e) {
+      console.warn('[Support] Failed to load messages:', e);
+    }
+  };
+
   const openFaq = useCallback((idx) => { setFaqIdx(idx); setView('faqDetail'); }, []);
 
-  const startChat = useCallback((quickMsg) => {
+  // Create or reuse a chat session
+  const ensureChat = async (subject) => {
+    const visitorId = getVisitorId();
+    
+    // Try to reuse existing chat
+    const savedId = getSavedChatId();
+    if (savedId) {
+      // Check if still open
+      const { data } = await supabase
+        .from('support_chats')
+        .select('id, status')
+        .eq('id', savedId)
+        .single();
+      
+      if (data && data.status === 'open') {
+        setChatId(data.id);
+        return data.id;
+      }
+    }
+
+    // Create new chat
+    const { data, error } = await supabase
+      .from('support_chats')
+      .insert({
+        visitor_id: visitorId,
+        visitor_name: 'Посетитель сайта',
+        status: 'open',
+        subject: subject || 'Общий вопрос',
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('[Support] Failed to create chat:', error);
+      return null;
+    }
+
+    setChatId(data.id);
+    saveChatId(data.id);
+    return data.id;
+  };
+
+  // Send message to Supabase
+  const sendToSupabase = async (cid, text, sender = 'visitor') => {
+    const { error } = await supabase
+      .from('support_messages')
+      .insert({ chat_id: cid, sender, text });
+
+    if (error) {
+      console.error('[Support] Failed to send message:', error);
+      return false;
+    }
+
+    // Update chat's last_message and unread_count
+    await supabase
+      .from('support_chats')
+      .update({
+        last_message: text,
+        updated_at: new Date().toISOString(),
+        ...(sender === 'visitor' ? { unread_count: supabase.rpc ? undefined : 1 } : {}),
+      })
+      .eq('id', cid);
+
+    // Increment unread count for operator
+    if (sender === 'visitor') {
+      await supabase.rpc('increment_unread', { chat_id_input: cid }).catch(() => {
+        // RPC may not exist, fallback to direct update
+        supabase.from('support_chats').update({ unread_count: 1 }).eq('id', cid);
+      });
+    }
+
+    return true;
+  };
+
+  const startChat = useCallback(async (quickMsg) => {
     setView('chat');
-    const initial = quickMsg
-      ? [{ id: 1, from: 'user', text: quickMsg }]
-      : [];
+    setIsTyping(true);
+
+    const cid = await ensureChat(quickMsg || 'Общий вопрос');
+    if (!cid) {
+      setIsTyping(false);
+      setMessages([{
+        id: Date.now(),
+        from: 'bot',
+        text: 'Произошла ошибка. Пожалуйста, попробуйте позже или напишите нам в Telegram.',
+        cta: true,
+      }]);
+      return;
+    }
 
     if (quickMsg) {
-      setMessages(initial);
-      setIsTyping(true);
-      setTimeout(() => {
+      // Send quick message
+      const userMsg = { id: 'u_' + Date.now(), from: 'user', text: quickMsg };
+      setMessages([userMsg]);
+      await sendToSupabase(cid, quickMsg, 'visitor');
+
+      // Bot auto-reply
+      setTimeout(async () => {
         setIsTyping(false);
-        setMessages(prev => [...prev, {
-          id: Date.now(),
-          from: 'bot',
-          text: 'Спасибо за обращение! 🙏 Для быстрого решения вашего вопроса, пожалуйста, напишите нам в Telegram — наши операторы ответят в течение 1-2 минут.',
-          cta: true,
-        }]);
+        const botText = 'Спасибо за обращение! 🙏 Ваше сообщение передано оператору. Мы ответим в течение нескольких минут. Также вы можете написать нам в Telegram для мгновенного ответа.';
+        const botMsg = { id: 'b_' + Date.now(), from: 'bot', text: botText, cta: true };
+        setMessages(prev => [...prev, botMsg]);
+        await sendToSupabase(cid, botText, 'bot');
       }, 1200);
     } else {
-      setMessages([{
-        id: 1,
-        from: 'bot',
-        text: 'Привет! 👋 Я помощник BAZZAR. Опишите ваш вопрос, и я постараюсь помочь, или перенаправлю вас к оператору.',
-      }]);
+      // Load existing messages or show welcome
+      const { data } = await supabase
+        .from('support_messages')
+        .select('*')
+        .eq('chat_id', cid)
+        .order('created_at', { ascending: true });
+
+      if (data?.length > 0) {
+        setMessages(data.map(m => ({
+          id: m.id,
+          from: m.sender === 'visitor' ? 'user' : 'bot',
+          text: m.text,
+          created_at: m.created_at,
+        })));
+        setIsTyping(false);
+      } else {
+        const welcomeText = 'Привет! 👋 Я помощник BAZZAR. Опишите ваш вопрос — оператор ответит в течение нескольких минут.';
+        setMessages([{ id: 'b_' + Date.now(), from: 'bot', text: welcomeText }]);
+        await sendToSupabase(cid, welcomeText, 'bot');
+        setIsTyping(false);
+      }
     }
     setTimeout(() => inputRef.current?.focus(), 100);
-  }, []);
+  }, [chatId]);
 
-  const sendMessage = useCallback((e) => {
+  const sendMessage = useCallback(async (e) => {
     e?.preventDefault();
     const text = input.trim();
     if (!text) return;
 
-    setMessages(prev => [...prev, { id: Date.now(), from: 'user', text }]);
+    // Optimistic UI
+    const userMsg = { id: 'u_' + Date.now(), from: 'user', text };
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
-    setIsTyping(true);
 
-    // Bot auto-response
-    setTimeout(() => {
-      setIsTyping(false);
-      const lower = text.toLowerCase();
+    // Ensure chat exists
+    let cid = chatId;
+    if (!cid) {
+      cid = await ensureChat('Чат');
+      if (!cid) return;
+    }
 
-      let response;
-      if (lower.includes('заказ') || lower.includes('доставк') || lower.includes('не пришл')) {
-        response = 'Если ваш заказ задерживается, пожалуйста, подождите 30 минут. Если товар всё ещё не пришёл — наш оператор в Telegram решит проблему максимально быстро! 🚀';
-      } else if (lower.includes('возврат') || lower.includes('вернуть') || lower.includes('деньги')) {
-        response = 'Для оформления возврата напишите нам в Telegram — укажите номер заказа и причину. Обработаем за 24 часа! 💰';
-      } else if (lower.includes('оплат') || lower.includes('карт') || lower.includes('сбп')) {
-        response = 'Мы принимаем карты Visa/MC/МИР, СБП и КупиКоины. Если возникли проблемы с оплатой — наш оператор поможет! 💳';
-      } else if (lower.includes('привет') || lower.includes('здрав') || lower.includes('добр')) {
-        response = 'Привет! 😊 Чем могу помочь? Опишите ваш вопрос или выберите тему.';
-      } else {
-        response = 'Спасибо за вопрос! Для детального ответа рекомендую связаться с нашим оператором в Telegram — он ответит в течение пары минут. 👇';
-      }
+    // Send to Supabase
+    const ok = await sendToSupabase(cid, text, 'visitor');
 
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        from: 'bot',
-        text: response,
-        cta: true,
-      }]);
-    }, 800 + Math.random() * 700);
-  }, [input]);
+    if (ok) {
+      // Bot auto-response after a delay
+      setIsTyping(true);
+      setTimeout(async () => {
+        setIsTyping(false);
+        const lower = text.toLowerCase();
+
+        let response;
+        if (lower.includes('заказ') || lower.includes('доставк') || lower.includes('не пришл')) {
+          response = 'Ваш вопрос по заказу передан оператору. Если заказ задерживается более 30 минут — напишите в Telegram для срочного решения. 🚀';
+        } else if (lower.includes('возврат') || lower.includes('вернуть') || lower.includes('деньги')) {
+          response = 'Запрос на возврат зафиксирован. Оператор свяжется с вами для уточнения деталей. Для ускорения — напишите в Telegram. 💰';
+        } else if (lower.includes('оплат') || lower.includes('карт') || lower.includes('сбп')) {
+          response = 'Вопрос по оплате передан оператору. Мы принимаем карты Visa/MC/МИР и СБП. 💳';
+        } else {
+          response = 'Сообщение передано оператору! Ответ придёт в этот чат. Для срочных вопросов — напишите в Telegram. 👇';
+        }
+
+        const botMsg = { id: 'b_' + Date.now(), from: 'bot', text: response, cta: true };
+        setMessages(prev => [...prev, botMsg]);
+        await sendToSupabase(cid, response, 'bot');
+      }, 800 + Math.random() * 700);
+    }
+  }, [input, chatId]);
 
   return (
     <>
@@ -135,6 +348,7 @@ function SupportWidget() {
           )}
         </span>
         {!isOpen && <span className={styles.fabPulse} />}
+        {hasNewMessage && !isOpen && <span className={styles.fabBadge}>!</span>}
       </button>
 
       {/* ═══ Widget Panel ═══ */}
